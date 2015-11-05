@@ -1,0 +1,67 @@
+\documentclass{article}
+\usepackage{geometry}
+\usepackage{csquotes}
+\usepackage{hyperref}
+\geometry{legalpaper, portrait, margin=1in}
+ 
+\title{Parallelizing Latent Dirichlet allocation (LDA)}
+\author{Virgile Audi, Nicolas Drizard, Charles Liu}
+\date{\today}
+ 
+\begin{document}
+ 
+\maketitle
+ 
+\section{Introduction}
+	\subsection{Background}
+		Latent Dirichlet Allocation was a topic model \href{https://www.cs.princeton.edu/~blei/papers/BleiNgJordan2003.pdf}{proposed} in 2003 that allows sets of observations to be explained by topics automatically discovered by the LDA technique. As stated in the article:
+
+		\begin{displayquote}
+			The goal is to find short descriptions of the members of a collection that enable efficient
+			processing of large collections while preserving the essential statistical relationships that are useful
+			for basic tasks such as classification, novelty detection, summarization, and similarity and relevance
+			judgments.
+		\end{displayquote}
+
+		The technique has widely been used in natural language processing.
+
+	\subsection{Motivation}
+		There is currently no public version in python that is parallelized (or in Cython). We think such functionality would be useful to the community, as LDA is a conceptually simple algorithm but provides impressive results.
+ 
+\section{Objectives}
+	\subsection{Functionality}
+		The algorithm is well-defined, we are trying to parallelize it wherever possible using multithreading/locking. We'd like to provide a Cython implementation as well, and apply more novel parallelization techniques such as Hogwild's lock-free approach to gradient descent.
+
+	\subsection{Performance}
+		We will benchmark our algorithm against two existing libraries:
+		\begin{itemize}
+			\item Serial Python library: \url{https://pypi.python.org/pypi/lda}
+			\item Parallel C++ library: \url{https://code.google.com/p/plda/}
+		\end{itemize}
+\section{Design Overview}
+	\subsection{Technologies Used}
+		As this is somewhat an embarassingly parallel problem, we want to look at two approaches:
+		\begin{itemize}
+			\item Python multiprocessing
+			\item Cython + Python multithreading
+		\end{itemize}
+
+ 	\subsection{Parallelism Details}
+ 		There are three areas where this can be parallelized:
+ 		\begin{itemize}
+ 			\item Gradient descent using the Hogwild approach
+ 			\item Variational inference
+ 			\item Gibbs sampler
+ 		\end{itemize}
+ \section{Verification}
+ 	As there are serial implementations available we will compare with those over Yelp and Guttenberg data (and larger data sets we have yet to find).
+ \section{Schedule}
+ 	\begin{itemize}
+ 		\item Functional, serial LDA implementation
+ 		\item Parallelized gradient descent using Hogwild
+ 		\item Parallelized update procedure (Gibbs sampling and variational inference)
+ 	\end{itemize}
+ \section{Work Distribution}
+ 	Each member will write a serial LDA to understand the algorithm and compare performance. Since there are three parallelization parts, each member will focus on one.
+
+\end{document}
