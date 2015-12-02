@@ -19,9 +19,9 @@ class LDA:
             beta = 0.1
         
         # topic -> words distribution
-        K_V = np.zeros((self.num_topics,documents.shape[1]), dtype=np.dtype("i"))
+        K_V = np.zeros((self.num_topics,documents.shape[1]), dtype=np.float)
         # documents -> topic distribution
-        D_K = np.zeros((documents.shape[0], self.num_topics), dtype=np.dtype("i"))
+        D_K = np.zeros((documents.shape[0], self.num_topics), dtype=np.float)
         # sum of types per topic
         sum_K = np.zeros((self.num_topics), dtype=np.dtype("i"))
         # current topic for ith word in corpus

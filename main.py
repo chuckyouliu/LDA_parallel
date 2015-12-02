@@ -15,3 +15,4 @@ X = lda.datasets.load_reuters()
 test = plda.LDA(10)
 test.CGS(X)
 print test.K_V
+print test.D_K

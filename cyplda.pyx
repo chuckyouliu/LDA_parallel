@@ -12,7 +12,7 @@ Collapsed Gibbs Sampling
 - Dynamic sampling (http://jmlr.csail.mit.edu/proceedings/papers/v13/xiao10a/xiao10a.pdf)
 '''
 @cython.boundscheck(False)
-cpdef void CGS(int[:, ::1] documents, int[:, ::1] K_V, int[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, float alpha, float beta, unsigned int n) nogil:
+cpdef void CGS(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, double alpha, double beta, unsigned int n) nogil:
     cdef size_t i, j, k, it, p
     # number of documents
     cdef int D = documents.shape[0]
@@ -21,9 +21,9 @@ cpdef void CGS(int[:, ::1] documents, int[:, ::1] K_V, int[:, ::1] D_K, int[::1]
     # number of topics
     cdef int K = K_V.shape[0]
     # malloc K integers to store probability distribution
-    cdef float* p_K = <float*> malloc(K*sizeof(float))
-    cdef float cumulative_p
-    cdef float randnum
+    cdef double* p_K = <double*> malloc(K*sizeof(double))
+    cdef double cumulative_p
+    cdef double randnum
         
     #initialize random topics to start
     cdef int count = 0
@@ -64,10 +64,26 @@ cpdef void CGS(int[:, ::1] documents, int[:, ::1] K_V, int[:, ::1] D_K, int[::1]
                     inc(D_K[i, topic])
                     inc(count)
     free(p_K)
+    
+    #normalize K_V and D_K
+    for i in range(K):
+        cumulative_p = 0
+        for j in range(V):
+            K_V[i,j] += beta
+            cumulative_p += K_V[i,j]
+        for j in range(V):
+            K_V[i,j] /= cumulative_p
+    for i in range(D):
+        cumulative_p = 0
+        for j in range(K):
+            D_K[i,j] += alpha
+            cumulative_p += D_K[i,j]
+        for j in range(K):
+            D_K[i,j] /= cumulative_p
         
     
 @cython.boundscheck(False)
-cdef int get_index(float* p_K, float randnum, int K) nogil:
+cdef int get_index(double* p_K, double randnum, int K) nogil:
     cdef int mink = 0
     cdef int maxk = K-1
     cdef int midk
