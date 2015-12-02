@@ -2,9 +2,10 @@ import cyplda
 import numpy as np
 
 class LDA:
-    def __init__(self, num_topics, iterations = 500):
+    def __init__(self, num_topics, iterations = 500, damping = 1):
         self.num_topics = num_topics
         self.iterations = iterations
+        self.damping = damping
         
     def set_topics(self, n):
         self.num_topics = n
@@ -26,8 +27,9 @@ class LDA:
         sum_K = np.zeros((self.num_topics), dtype=np.dtype("i"))
         # current topic for ith word in corpus
         curr_K = np.zeros((np.sum(documents)), dtype=np.dtype("i"))
-        # TODO: add dynamic sampling parameter
-        cyplda.CGS(documents, K_V, D_K, sum_K, curr_K, alpha, beta, self.iterations)
+        # sampling distributions
+        sampling = np.zeros((documents.shape[0], documents.shape[1], np.max(documents)), dtype=np.dtype("i"))
+        cyplda.CGS(documents, K_V, D_K, sum_K, curr_K, alpha, beta, self.iterations, sampling)
         self.K_V = K_V
         self.D_K = D_K
         self.sum_K = sum_K
