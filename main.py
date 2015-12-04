@@ -17,15 +17,14 @@ logger = logging.getLogger('lda')
 logger.propagate = False
 
 X = lda.datasets.load_reuters()
-iterations = 10
+iterations = 25
 vocab = lda.datasets.load_reuters_vocab()
 test = plda.LDA(20, iterations)
 #base = lda.LDA(20, iterations)
 n_top_words = 8
 
-
 with Timer() as t:
-    test.pCGS(X, 4, 0.1, 0.01)
+    test.pCGS(X, 8, 0.1, 0.01)
     topic_word = test.K_V 
     for i, topic_dist in enumerate(topic_word):
         topic_words = np.array(vocab)[np.argsort(topic_dist)][:-(n_top_words+1):-1]

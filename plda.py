@@ -97,10 +97,10 @@ class LDA:
         t_sum_K = np.zeros(sum_K.shape, dtype=np.dtype("i"))
         
         #specify the boundaries of documents to work over
-        d_interval = (documents.shape[0] + (documents.shape[0]%num_threads))/num_threads
+        d_interval = (documents.shape[0] - (documents.shape[0]%num_threads))/num_threads + 1
         d_start = thread_num*d_interval
         d_end = min(documents.shape[0], (thread_num+1)*d_interval)
-        w_interval = (documents.shape[1] + (documents.shape[1]%num_threads))/num_threads
+        w_interval = (documents.shape[1] - (documents.shape[1]%num_threads))/num_threads + 1
         
         #create a custom curr_K that maps to the document boundaries
         curr_K = np.zeros((np.sum(documents[d_start:d_end])), dtype=np.dtype("i"))
@@ -121,7 +121,7 @@ class LDA:
         
         #have t_sum_K be a copy of the summed sum_K
         cyplda.copy(sum_K, t_sum_K)
-        
+        '''
         #start the gibb sampling iterations
         for i in xrange(self.iterations):
             count = 0
@@ -149,7 +149,7 @@ class LDA:
                 #at this point need to wait for all threads to update sum_K with their changes
                 #once all threads reach this point it's safe to copy sum_K to t_sum_K
                 cyplda.copy(sum_K, t_sum_K)
-        
+        '''
     def copyConditionCheck(self, copyCount, num_threads, copyCondition):
         copyCount[0] +=1
         if copyCount[0] == num_threads:
