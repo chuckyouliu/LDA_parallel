@@ -1,0 +1,5 @@
+Running on LDA's reuters data with 1000 iterations for 20 topics
+LDA package speed: 30.9750571251
+
+Our results:
+Pure Cython serial implementation with dynamic sampling - 17.5569279194
