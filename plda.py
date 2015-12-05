@@ -5,7 +5,7 @@ import threading
 
 class LDA:
     def __init__(self, num_topics, iterations = 500, damping = 1, sync_interval = 1):
-        assert sync_interval < iterations, "Cannot have sync_interval greater than iterations"
+        assert sync_interval <= iterations, "Cannot have sync_interval greater than iterations"
         self.num_topics = num_topics
         self.iterations = iterations
         self.damping = damping
@@ -21,7 +21,7 @@ class LDA:
         self.damping = d
         
     def set_sync_interval(self, s):
-        assert s < self.iterations, "Cannot have sync_interval greater than iterations"
+        assert s <= self.iterations, "Cannot have sync_interval greater than iterations"
         self.sync_interval = s
         
     #baseline serial cython CGS
