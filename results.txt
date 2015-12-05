@@ -5,18 +5,18 @@ Our results:
 Pure Cython serial implementation with dynamic sampling - 17.5569279194
 
 Parallelising over the documents:
-1 threads, 1 sync_step:24.0464789867
-1 threads, 50 sync_step:23.9174251556
-1 threads, 100 sync_step:23.8368589878
-2 threads, 1 sync_step:13.1959500313
-2 threads, 50 sync_step:12.6560890675
-2 threads, 100 sync_step:12.4410099983
-4 threads, 1 sync_step:7.96941018105
-4 threads, 50 sync_step:7.41133594513
-4 threads, 100 sync_step:6.95494699478
-8 threads, 1 sync_step:7.21679091454
-8 threads, 50 sync_step:4.60686302185
-8 threads, 100 sync_step:4.80586409569
+1 threads, 1 sync_step:25.4051601887
+1 threads, 50 sync_step:24.8396861553
+1 threads, 100 sync_step:25.4047241211
+2 threads, 1 sync_step:13.3071460724
+2 threads, 50 sync_step:12.4539561272
+2 threads, 100 sync_step:12.497713089
+4 threads, 1 sync_step:7.68341302872
+4 threads, 50 sync_step:6.71756792068
+4 threads, 100 sync_step:6.69540214539
+8 threads, 1 sync_step:7.43587589264
+8 threads, 50 sync_step:4.64382910728
+8 threads, 100 sync_step:4.59509801865
 
 Because it's possible to corrupt these structures, each thread must
 create a local copy of K_V (topics/words) and sum_K (totals of each topic), then there is a 

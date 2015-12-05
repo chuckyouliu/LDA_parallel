@@ -8,8 +8,12 @@ from cython.parallel import prange
 '''
 Initial topic sampling for Gibbs sampling
 '''
+def init_topics(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, int d_start, int d_end):
+    with nogil:
+        _init_topics(documents, K_V, D_K, sum_K, curr_K, d_start, d_end)
+
 @cython.boundscheck(False)
-cpdef void init_topics(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, int d_start, int d_end) nogil:
+cpdef void _init_topics(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, int d_start, int d_end) nogil:
     cdef size_t i,j,k
     # number of topics
     cdef int K = K_V.shape[0]
