@@ -59,7 +59,7 @@ class LDA:
         to update K_V. This avoids the need to store the local K_V and synchronize
         in case the corpus is very large, however the extra locking may hinder speedups
     '''
-    def pCGS(self, documents, num_threads = 4, alpha=None, beta=None, split_words = False):
+    def fit(self, documents, num_threads = 4, alpha=None, beta=None, split_words = False):
         if alpha is None or alpha <= 0:
             alpha = 50./self.num_topics
         if beta is None or beta <= 0:
@@ -74,6 +74,34 @@ class LDA:
         # sampling distributions
         sampling = np.zeros((documents.shape[0], documents.shape[1], np.max(documents)), dtype=np.dtype("i"))
         
+        self.pCGS(documents, self.iterations, K_V, D_K, sum_K, sampling, num_threads, alpha, beta, split_words)
+        assert np.sum(sum_K) == np.sum(documents), "Sum_K not synced: {}, {}".format(np.sum(sum_K), np.sum(documents))
+        assert np.sum(K_V) == np.sum(documents), "K_V not synced: {}, {}".format(np.sum(K_V), np.sum(documents))
+        
+        self.K_V = K_V
+        self.D_K = D_K
+        self.sum_K = sum_K
+        self.alpha = alpha
+        self.beta = beta
+        
+    def inference(self, documents, iterations = 500, num_threads = 4, split_words = False):
+        #create a new D_K that has additional rows for documents
+        D_K = np.zeros((documents.shape[0] + self.D_K.shape[0], self.D_K.shape[1]))
+        D_K[documents.shape[0]:D_K.shape[0]] = self.D_K
+        
+        #create a copy of K_V, sum_K, sampling to run CGS over
+        K_V = self.K_V.copy()
+        sum_K = self.sum_K.copy()
+        sampling = np.zeros((documents.shape[0], documents.shape[1], np.max(documents)), dtype=np.dtype("i"))
+        self.pCGS(documents, iterations, K_V, D_K, sum_K, sampling, num_threads, self.alpha, self.beta, split_words)
+        
+        #return the D_K over the first documents.shape[0] rows
+        return D_K[0:documents.shape[0]]
+        
+    '''
+        This is a function that's shared by the fit and inference functions to run parallelised CGS
+    '''
+    def pCGS(self, documents, iterations, K_V, D_K, sum_K, sampling, num_threads, alpha, beta, split_words):
         #vector of threads
         tList = [None]*num_threads
         #count array to synchronize
@@ -88,20 +116,12 @@ class LDA:
             for i in range(num_threads):
                 wLocks[i] = threading.Lock()
         for i in range(num_threads):
-            tList[i] = threading.Thread(target=self.workerCGS, args=(wLocks, copyCondition, copyCount, i, num_threads, documents, K_V, D_K, sum_K, alpha, beta, sampling))
+            tList[i] = threading.Thread(target=self.workerCGS, args=(iterations, wLocks, copyCondition, copyCount, i, num_threads, documents, K_V, D_K, sum_K, alpha, beta, sampling))
             tList[i].start()
         for i in range(num_threads):
             tList[i].join()
             
-        assert np.sum(sum_K) == np.sum(documents), "Sum_K not synced: {}, {}".format(np.sum(sum_K), np.sum(documents))
-        assert np.sum(K_V) == np.sum(documents), "K_V not synced: {}, {}".format(np.sum(K_V), np.sum(documents))
-        mat.normalize(K_V, beta)
-        mat.normalize(D_K, alpha)           
-        
-        self.K_V = K_V
-        self.D_K = D_K
-        
-    def workerCGS(self, wLocks, copyCondition, copyCount, thread_num, num_threads, documents, K_V, D_K, sum_K, alpha, beta, sampling):
+    def workerCGS(self, iterations, wLocks, copyCondition, copyCount, thread_num, num_threads, documents, K_V, D_K, sum_K, alpha, beta, sampling):
         # vectors for probability and topic counts
         p_K = np.zeros((self.num_topics), dtype=np.float)
         uniq_K = np.zeros((self.num_topics), dtype=np.dtype("i"))
@@ -113,10 +133,20 @@ class LDA:
         #specify the boundaries of documents to work over
         d_interval = (documents.shape[0] - (documents.shape[0]%num_threads))/num_threads + 1 if documents.shape[0]%num_threads != 0 else documents.shape[0]/num_threads
         d_start = thread_num*d_interval
-        d_end = min(documents.shape[0], (thread_num+1)*d_interval)
+        d_end = min(documents.shape[0], d_start + d_interval)
         w_interval = (documents.shape[1] - (documents.shape[1]%num_threads))/num_threads + 1 if documents.shape[1]%num_threads != 0 else documents.shape[1]/num_threads
         #create a custom curr_K and that maps to the document boundaries
-        curr_K = np.zeros((np.sum(documents[d_start:d_end])), dtype=np.dtype("i"))        
+        curr_K = None
+        if wLocks is None:
+            curr_K = np.zeros((np.sum(documents[d_start:d_end])), dtype=np.dtype("i"))
+        else:
+            max_region = 0
+            for i in xrange(num_threads):
+                region = np.sum(documents[d_start:d_end, i*w_interval:(i+1)*w_interval])
+                if region > max_region:
+                    max_region = region
+            curr_K = np.zeros((num_threads, max_region), dtype=np.dtype("i"))
+            
         #initialize topics for each thread
         if wLocks is None:
             cyplda.init_topics(documents, t_K_V, D_K, t_sum_K, curr_K, d_start, d_end, 0, documents.shape[1])
@@ -125,8 +155,8 @@ class LDA:
                 word_group = (i+thread_num)%num_threads
                 with wLocks[word_group]:
                     w_start = (word_group)*w_interval
-                    w_end = min(documents.shape[1], (word_group+1)*w_interval)
-                    cyplda.init_topics(documents, K_V, D_K, t_sum_K, curr_K, d_start, d_end, w_start, w_end)
+                    w_end = min(documents.shape[1], w_start + w_interval)
+                    cyplda.init_topics(documents, K_V, D_K, t_sum_K, curr_K[i], d_start, d_end, w_start, w_end)
                 
         #have sum_K and K_V be the sum of all thread-specific t_sum_K's/t_K_V's
         with copyCondition:
@@ -138,7 +168,7 @@ class LDA:
         mat.copy1d(sum_K, t_sum_K)
         if wLocks is None: mat.copy2d(K_V, t_K_V)
         #start the gibb sampling iterations
-        for i in xrange(self.iterations/self.sync_interval):
+        for i in xrange(iterations/self.sync_interval):
             if wLocks is None:
                 cyplda.CGS_iter(documents, t_K_V, D_K, t_sum_K, curr_K, alpha, beta, sampling, p_K, uniq_K, d_start, d_end, 0, documents.shape[1], self.sync_interval)
             else:
@@ -148,7 +178,7 @@ class LDA:
                     with wLocks[word_group]:
                         w_start = (word_group)*w_interval
                         w_end = min(documents.shape[1], (word_group+1)*w_interval)
-                        cyplda.CGS_iter(documents, K_V, D_K, t_sum_K, curr_K, alpha, beta, sampling, p_K, uniq_K, d_start, d_end, w_start, w_end, self.sync_interval)
+                        cyplda.CGS_iter(documents, K_V, D_K, t_sum_K, curr_K[j], alpha, beta, sampling, p_K, uniq_K, d_start, d_end, w_start, w_end, self.sync_interval)
             
             #must synchronize sum_K and K_V              
             #this subtraction can be done in parallel as originals unmodified and then wait for every thread to do that
