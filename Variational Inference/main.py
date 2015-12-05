@@ -18,19 +18,6 @@ from scipy.sparse import csc_matrix
 
 
 if __name__ == '__main__':
-    # N = 100
-    # num_threads = 4
-    # a = np.ones((N, N))
-    # b = np.ones((N, N))
-    # temp = np.ones(N)
-    # start = time.time()
-    # temp = lda_vi_cython.parallel_test(temp, num_threads)
-    # duration = time.time() - start
-    # for t in temp:
-    #     print t, ' ',
-    # print 'time is %s s' % duration
-
-
     corpus_ap = True
 
     if corpus_ap:
@@ -86,7 +73,7 @@ if __name__ == '__main__':
     # #### Parameters
     dtm = np.load('../../lv_dtm.npy').astype(int)
     vocablv = np.load('../Lasvegas/lv_vocab10.npy')
-    S = 40
+    S = 50
     max_iter = 100
     tau = 512
     kappa = 0.7
@@ -94,13 +81,13 @@ if __name__ == '__main__':
     eta = 0.001
     threshold = 0.00000001
     num_threads = 1
-    ntopic = 40
+    num_topics = 40
     ndoc, nvoc = dtm.shape
 
     # ### Opt
     np.random.seed(0)
     # Initialization
-    model = LDA_vi(ntopic, num_threads)
+    model = LDA_vi(num_topics, num_threads)
     time1 = time.time()
     # lda_batch makes in place operations
     model.fit_s(dtm, S, tau=512, kappa=0.7)
@@ -108,22 +95,40 @@ if __name__ == '__main__':
     time1_stop = time.time() - time1
     print 'Opt Time is', time1_stop, ' s'
 
-    # ### Batch
+    # ### Parallel
     # Initialization
-    model_batch = LDA_vi(ntopic, num_threads)
+    num_threads = 1
+    model_parallel1 = LDA_vi(num_topics, num_threads)
     time1 = time.time()
     # lda_batch makes in place operations
-    model_batch.fit_batch(dtm, ndoc)
-
+    model_parallel1.fit_p(dtm, S)
     time1_stop = time.time() - time1
-    print 'Batch Time is', time1_stop, ' s'
+    print 'Parallel Time with {} threads is '.format(num_threads), time1_stop, ' s'
+
+    # Initialization
+    num_threads = 2
+    model_parallel2 = LDA_vi(num_topics, num_threads)
+    time1 = time.time()
+    # lda_batch makes in place operations
+    model_parallel2.fit_p(dtm, S)
+    time1_stop = time.time() - time1
+    print 'Parallel Time with {} threads is '.format(num_threads), time1_stop, ' s'
+
+    # Initialization
+    num_threads = 4
+    model_parallel3 = LDA_vi(num_topics, num_threads)
+    time1 = time.time()
+    # lda_batch makes in place operations
+    model_parallel3.fit_p(dtm, S)
+    time1_stop = time.time() - time1
+    print 'Parallel Time with {} threads is '.format(num_threads), time1_stop, ' s'
 
     # ### Serial
 
     np.random.seed(0)
-    lambda_ = np.random.gamma(100., 1./100., (ntopic, nvoc))
+    lambda_ = np.random.gamma(100., 1./100., (num_topics, nvoc))
     time2 = time.time()
-    lambda_serial, gamma_serial = lda_vi_serial.lda_batch(lambda_, dtm, ntopic, S, 512, 0.7)
+    lambda_serial, gamma_serial = lda_vi_serial.lda_batch(lambda_, dtm, num_topics, S, 512, 0.7)
     time2_stop = time.time() - time2
     print 'Serial Time is', time2_stop, ' s'
 
@@ -136,8 +141,22 @@ if __name__ == '__main__':
             topic_words = np.array(vocablv)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
             print(u'Topic {}: {}'.format(i, ' '.join(topic_words)))
 
-        print 'Batch topics'
-        topic_word = model_batch.topics  # model.components_ also works
+        print 'Parallel topics'
+        topic_word = model_parallel1.topics  # model.components_ also works
+        n_top_words = 10
+        for i, topic_dist in enumerate(topic_word):
+            topic_words = np.array(vocablv)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
+            print(u'Topic {}: {}'.format(i, ' '.join(topic_words)))
+
+        print 'Parallel topics'
+        topic_word = model_parallel2.topics  # model.components_ also works
+        n_top_words = 10
+        for i, topic_dist in enumerate(topic_word):
+            topic_words = np.array(vocablv)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
+            print(u'Topic {}: {}'.format(i, ' '.join(topic_words)))
+
+        print 'Parallel topics'
+        topic_word = model_parallel3.topics  # model.components_ also works
         n_top_words = 10
         for i, topic_dist in enumerate(topic_word):
             topic_words = np.array(vocablv)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
@@ -155,15 +174,19 @@ if __name__ == '__main__':
 
         plt.figure(1)
         # Cython
-        plt.subplot(211)
+        plt.subplot(311)
         for i in xrange(num_topics):
             plt.plot(np.arange(N_words), model.topics[i, :])
         plt.title('Opt')
         # Serial
-        plt.subplot(212)
+        plt.subplot(312)
         for i in xrange(num_topics):
             plt.plot(np.arange(N_words), lambda_serial[i, :])
         plt.title('Serial')
+        plt.subplot(313)
+        for i in xrange(num_topics):
+            plt.plot(np.arange(N_words), model_parallel.topics[i, :])
+        plt.title('Parallel')
         plt.show()
 
     # raw_input()
