@@ -51,6 +51,6 @@ with Timer() as t:
         print('Topic {}: {}'.format(i, ' '.join(topic_words)))
 print "Serial: {}".format(t.interval)
 print "Parallel"
-for time in times:
+for time in sorted(times, key=lambda x: x[0]):
     num_threads, lock_regions = time
     print "Threads-{}-Lock-{}:{}".format(num_threads, lock_regions, times[time])
