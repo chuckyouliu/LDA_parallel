@@ -3,3 +3,48 @@ LDA package speed: 30.9750571251
 
 Our results:
 Pure Cython serial implementation with dynamic sampling - 17.5569279194
+
+Parallelising over the documents:
+1 threads, 1 sync_step:25.4051601887
+1 threads, 50 sync_step:24.8396861553
+1 threads, 100 sync_step:25.4047241211
+2 threads, 1 sync_step:13.3071460724
+2 threads, 50 sync_step:12.4539561272
+2 threads, 100 sync_step:12.497713089
+4 threads, 1 sync_step:7.68341302872
+4 threads, 50 sync_step:6.71756792068
+4 threads, 100 sync_step:6.69540214539
+8 threads, 1 sync_step:7.43587589264
+8 threads, 50 sync_step:4.64382910728
+8 threads, 100 sync_step:4.59509801865
+
+Because it's possible to corrupt these structures, each thread must
+create a local copy of K_V (topics/words) and sum_K (totals of each topic), then there is a 
+synchronization process which involves locking and updating the global K_V and sum_K and copying
+it over to the local ones. This creates a slow-down, but we can assume that there is a small
+likelihood that data can be corrupt given the sparsity of the matrix and do a synchronization
+over some number of steps (that is the sync_step above). 
+
+Parallelising over the documents and words:
+An improvement on the above is if we can ensure no two words are being updated at the same time,
+we can remove the need for a local copy of K_V, a huge savings memory-wise and reduces compute
+time for its synchronization process as well. We split V into num_threads partitions and create
+a lock associate with each. Then thread i starts on the ith partition and loops through each 
+partition of V attaining the associated lock. The same times below:
+
+1 threads, 1 sync_step:23.9886610508
+1 threads, 50 sync_step:23.8518610001
+1 threads, 100 sync_step:23.7493989468
+2 threads, 1 sync_step:19.3985958099
+2 threads, 50 sync_step:17.3440859318
+2 threads, 100 sync_step:16.3293850422
+4 threads, 1 sync_step:14.2606041431
+4 threads, 50 sync_step:11.3682918549
+4 threads, 100 sync_step:11.3673751354
+8 threads, 1 sync_step:11.0638480186
+8 threads, 50 sync_step:8.47491002083
+8 threads, 100 sync_step:8.58985686302
+
+Locking over V showed a signification slowdown, outweighing the benefit of synchronizing K_V.
+However, we did remove the need for storing a local copy of K_V, so if memory is a concern this
+would be a potential approach.
