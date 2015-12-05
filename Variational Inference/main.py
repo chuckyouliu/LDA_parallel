@@ -1,13 +1,35 @@
+import sys
+import os.path
+sys.path.append(os.path.join('..', 'util'))
+
+import set_compiler
+set_compiler.install()
+
+import pyximport
+pyximport.install()
+
 import numpy as np
 import lda_vi_serial
-from lda_vi_cython import lda_batch
+import lda_vi_cython
 import time
 import matplotlib.pyplot as plt
-import lda
 from scipy.sparse import csc_matrix
 
 
 if __name__ == '__main__':
+    # N = 100
+    # num_threads = 4
+    # a = np.ones((N, N))
+    # b = np.ones((N, N))
+    # temp = np.ones(N)
+    # start = time.time()
+    # temp = lda_vi_cython.parallel_test(temp, num_threads)
+    # duration = time.time() - start
+    # for t in temp:
+    #     print t, ' ',
+    # print 'time is %s s' % duration
+
+
     corpus_ap = True
 
     if corpus_ap:
@@ -68,7 +90,7 @@ if __name__ == '__main__':
     alpha = 0.001
     eta = 0.001
     threshold = 0.00000001
-    num_threads = 1
+    num_threads = 4
     ntopic = 10
     ndoc, nvoc = dtm.shape
 
@@ -83,7 +105,7 @@ if __name__ == '__main__':
     ExpELogBeta = np.zeros((ntopic, nvoc))
     time1 = time.time()
     # lda_batch makes in place operations
-    lda_batch(dtm, ntopic, S, num_threads, 512, 0.7, lambda_opt, gamma_opt, lambda_int, phi, ExpLogTethad, ExpELogBeta)
+    lda_vi_cython.lda_batch(dtm, ntopic, S, num_threads, 512, 0.7, lambda_opt, gamma_opt, lambda_int, phi, ExpLogTethad, ExpELogBeta)
 
     time1_stop = time.time() - time1
     print 'Opt Time is', time1_stop, ' s'

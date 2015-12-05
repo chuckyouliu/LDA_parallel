@@ -1,7 +1,21 @@
 #cython: boundscheck=False, wraparound=False, nonecheck=False, cdivision=True
 from libc.math cimport exp, log
 from libc.stdlib cimport malloc
-from cython.parallel import prange
+from cython.parallel import parallel, prange
+
+
+cpdef double [:] parallel_test(double[:] temp, int num_threads):
+    cdef unsigned int i, k, N = temp.shape[0]
+    cdef double a
+
+    with nogil, parallel(num_threads=num_threads):
+        for i in prange(N):
+            a = 0
+            for k in range(1000):
+                a = a + i
+            temp[i] = a
+
+    return temp
 
 
 cdef double digamma(double x) nogil:
