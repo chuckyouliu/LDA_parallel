@@ -51,8 +51,15 @@ class LDA:
         
     '''
         Implement a parallel version of CGS over documents
+        This requires storing a copy of sum_K and K_V to avoid conflicts
+        There's a synchronization period over which to reconcile the global
+        sum_K/K_V with the thread's local
+        Additional feature is setting split_words = True
+        This splits V into num_threads regions and provides locking mechanisms
+        to update K_V. This avoids the need to store the local K_V and synchronize
+        in case the corpus is very large, however the extra locking may hinder speedups
     '''
-    def pCGS(self, documents, num_threads = 4, alpha=None, beta=None):
+    def pCGS(self, documents, num_threads = 4, alpha=None, beta=None, split_words = False):
         if alpha is None or alpha <= 0:
             alpha = 50./self.num_topics
         if beta is None or beta <= 0:
@@ -73,8 +80,15 @@ class LDA:
         copyCount = [0]
         #condition object to synchronize
         copyCondition = threading.Condition()
+        
+        wLocks = None
+        if split_words:
+            #array of locks over words
+            wLocks = [None]*num_threads
+            for i in range(num_threads):
+                wLocks[i] = threading.Lock()
         for i in range(num_threads):
-            tList[i] = threading.Thread(target=self.workerCGS, args=(copyCondition, copyCount, i, num_threads, documents, K_V, D_K, sum_K, alpha, beta, sampling))
+            tList[i] = threading.Thread(target=self.workerCGS, args=(wLocks, copyCondition, copyCount, i, num_threads, documents, K_V, D_K, sum_K, alpha, beta, sampling))
             tList[i].start()
         for i in range(num_threads):
             tList[i].join()
@@ -87,55 +101,73 @@ class LDA:
         self.K_V = K_V
         self.D_K = D_K
         
-    def workerCGS(self, copyCondition, copyCount, thread_num, num_threads, documents, K_V, D_K, sum_K, alpha, beta, sampling):
+    def workerCGS(self, wLocks, copyCondition, copyCount, thread_num, num_threads, documents, K_V, D_K, sum_K, alpha, beta, sampling):
         # vectors for probability and topic counts
         p_K = np.zeros((self.num_topics), dtype=np.float)
         uniq_K = np.zeros((self.num_topics), dtype=np.dtype("i"))
         
         #create a copy of sum_K and K_V to work over
         t_sum_K = np.zeros(sum_K.shape, dtype=np.dtype("i"))
-        t_K_V = np.zeros(K_V.shape, dtype=np.float)
+        t_K_V = np.zeros(K_V.shape, dtype=np.float) if wLocks is None else None
         
         #specify the boundaries of documents to work over
         d_interval = (documents.shape[0] - (documents.shape[0]%num_threads))/num_threads + 1 if documents.shape[0]%num_threads != 0 else documents.shape[0]/num_threads
         d_start = thread_num*d_interval
         d_end = min(documents.shape[0], (thread_num+1)*d_interval)
+        w_interval = (documents.shape[1] - (documents.shape[1]%num_threads))/num_threads + 1 if documents.shape[1]%num_threads != 0 else documents.shape[1]/num_threads
         #create a custom curr_K and that maps to the document boundaries
         curr_K = np.zeros((np.sum(documents[d_start:d_end])), dtype=np.dtype("i"))        
-        #initialize topics for each thread   
-        cyplda.init_topics(documents, t_K_V, D_K, t_sum_K, curr_K, d_start, d_end)
+        #initialize topics for each thread
+        if wLocks is None:
+            cyplda.init_topics(documents, t_K_V, D_K, t_sum_K, curr_K, d_start, d_end, 0, documents.shape[1])
+        else:
+            for i in xrange(num_threads):
+                word_group = (i+thread_num)%num_threads
+                with wLocks[word_group]:
+                    w_start = (word_group)*w_interval
+                    w_end = min(documents.shape[1], (word_group+1)*w_interval)
+                    cyplda.init_topics(documents, K_V, D_K, t_sum_K, curr_K, d_start, d_end, w_start, w_end)
                 
         #have sum_K and K_V be the sum of all thread-specific t_sum_K's/t_K_V's
         with copyCondition:
             mat.add1d(sum_K, t_sum_K)
-            mat.add2d(K_V, t_K_V)
+            if wLocks is None: mat.add2d(K_V, t_K_V)
             self.copyConditionCheck(copyCount, num_threads, copyCondition) 
         
         #have t_sum_K/t_K_V be a copy of the summed sum_K/K_V
         mat.copy1d(sum_K, t_sum_K)
-        mat.copy2d(K_V, t_K_V)
+        if wLocks is None: mat.copy2d(K_V, t_K_V)
         #start the gibb sampling iterations
         for i in xrange(self.iterations/self.sync_interval):
-            cyplda.CGS_iter(documents, t_K_V, D_K, t_sum_K, curr_K, alpha, beta, sampling, p_K, uniq_K, d_start, d_end, self.sync_interval)
+            if wLocks is None:
+                cyplda.CGS_iter(documents, t_K_V, D_K, t_sum_K, curr_K, alpha, beta, sampling, p_K, uniq_K, d_start, d_end, 0, documents.shape[1], self.sync_interval)
+            else:
+                #work through each group of words
+                for j in xrange(num_threads):
+                    word_group = (j+thread_num)%num_threads
+                    with wLocks[word_group]:
+                        w_start = (word_group)*w_interval
+                        w_end = min(documents.shape[1], (word_group+1)*w_interval)
+                        cyplda.CGS_iter(documents, K_V, D_K, t_sum_K, curr_K, alpha, beta, sampling, p_K, uniq_K, d_start, d_end, w_start, w_end, self.sync_interval)
+            
             #must synchronize sum_K and K_V              
             #this subtraction can be done in parallel as originals unmodified and then wait for every thread to do that
-            
             mat.subtract1d(t_sum_K, sum_K)
-            mat.subtract2d(t_K_V, K_V)
+            if wLocks is None: mat.subtract2d(t_K_V, K_V)
           
             with copyCondition:
                 self.copyConditionCheck(copyCount, num_threads, copyCondition)
                 
-            #one at a time update sum_K
+            #one at a time update sum_K and K_V
             with copyCondition:
                 mat.add1d(sum_K, t_sum_K)
-                mat.add2d(K_V, t_K_V)
+                if wLocks is None: mat.add2d(K_V, t_K_V)
                 self.copyConditionCheck(copyCount, num_threads, copyCondition)
                 
             #at this point need to wait for all threads to update sum_K with their changes
             #once all threads reach this point it's safe to copy sum_K to t_sum_K
             mat.copy1d(sum_K, t_sum_K)
-            mat.copy2d(K_V, t_K_V)
+            if wLocks is None: mat.copy2d(K_V, t_K_V)
          
     def copyConditionCheck(self, copyCount, num_threads, copyCondition):
         copyCount[0] +=1

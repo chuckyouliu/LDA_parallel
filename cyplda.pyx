@@ -7,12 +7,12 @@ from libc.stdlib cimport rand, RAND_MAX
 '''
 Initial topic sampling for Gibbs sampling
 '''
-def init_topics(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, int d_start, int d_end):
+def init_topics(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, int d_start, int d_end, int w_start, int w_end):
     with nogil:
-        _init_topics(documents, K_V, D_K, sum_K, curr_K, d_start, d_end)
+        _init_topics(documents, K_V, D_K, sum_K, curr_K, d_start, d_end, w_start, w_end)
 
 @cython.boundscheck(False)
-cpdef void _init_topics(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, int d_start, int d_end) nogil:
+cdef inline void _init_topics(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, int d_start, int d_end, int w_start, int w_end) nogil:
     cdef size_t i,j,k
     # number of topics
     cdef int K = K_V.shape[0]
@@ -20,7 +20,7 @@ cpdef void _init_topics(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1
     cdef int count = 0
     
     for i in xrange(d_start, d_end):
-        for j in xrange(K_V.shape[1]):
+        for j in xrange(w_start, w_end):
             for k in xrange(documents[i,j]):
                 topic = count % K
                 curr_K[count] = topic
@@ -30,14 +30,14 @@ cpdef void _init_topics(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1
                 inc(count)
 
 '''
-Just CGS with dynamic sampling with specified documents and iterations
+CGS with dynamic sampling with specified documents/words and iterations
 '''
-def CGS_iter(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, double alpha, double beta, int[:, :, ::1] sampling, double[::1] p_K, int[::1] uniq_K, int d_start, int d_end, int iterations):
+def CGS_iter(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, double alpha, double beta, int[:, :, ::1] sampling, double[::1] p_K, int[::1] uniq_K, int d_start, int d_end, int w_start, int w_end, int iterations):
     with nogil:
-        _CGS_iter(documents, K_V, D_K, sum_K, curr_K, alpha, beta, sampling, p_K, uniq_K, d_start, d_end, iterations)
+        _CGS_iter(documents, K_V, D_K, sum_K, curr_K, alpha, beta, sampling, p_K, uniq_K, d_start, d_end, w_start, w_end, iterations)
 
 @cython.boundscheck(False)
-cdef inline void _CGS_iter(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, double alpha, double beta, int[:, :, ::1] sampling, double[::1] p_K, int[::1] uniq_K, int d_start, int d_end, int iterations) nogil:
+cdef inline void _CGS_iter(int[:, ::1] documents, double[:, ::1] K_V, double[:, ::1] D_K, int[::1] sum_K, int[::1] curr_K, double alpha, double beta, int[:, :, ::1] sampling, double[::1] p_K, int[::1] uniq_K, int d_start, int d_end, int w_start, int w_end, int iterations) nogil:
     cdef size_t i,j,k,p,it
     # number of types
     cdef int V = documents.shape[1]
@@ -49,7 +49,7 @@ cdef inline void _CGS_iter(int[:, ::1] documents, double[:, ::1] K_V, double[:, 
     for it in xrange(iterations):
         count = 0
         for i in xrange(d_start, d_end):
-            for j in xrange(V):
+            for j in xrange(w_start, w_end):
                 #check if document has type j, if so go to sampling procedure
                 if documents[i,j] > 0:
                     num_samples = documents[i,j]
