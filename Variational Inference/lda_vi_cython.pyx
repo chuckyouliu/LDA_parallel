@@ -86,7 +86,7 @@ cdef void exp_digamma_arr(double[:, ::1] data, double[:, ::1] dig_arr) nogil:
             dig_arr[i, j] = exp(dig_arr[i, j] - s)
 
 
-cpdef void lda_batch(long[:, ::1] dtm, unsigned int ntopic, unsigned int batch_size,
+cpdef void lda_online(long[:, ::1] dtm, unsigned int ntopic, unsigned int batch_size,
                 unsigned int num_threads, float tau, float kappa, double[:, ::1] lambda_,
                 double[:, ::1] gamma,  double[:, ::1] lambda_int,
                 double[:, ::1] phi, double[::1] ExpLogTethad,

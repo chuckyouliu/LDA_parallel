@@ -11,6 +11,7 @@ pyximport.install()
 import numpy as np
 import lda_vi_serial
 import lda_vi_cython
+from lda_vi import LDA_vi
 import time
 import matplotlib.pyplot as plt
 from scipy.sparse import csc_matrix
@@ -83,32 +84,39 @@ if __name__ == '__main__':
             dtm[10*i:10*(i+2), 50*i:50*(i+1)] = block
 
     # #### Parameters
-    S = 50
+    dtm = np.load('../../lv_dtm.npy').astype(int)
+    vocablv = np.load('../Lasvegas/lv_vocab10.npy')
+    S = 40
     max_iter = 100
-    tau = 500
-    kappa = 0.9
+    tau = 512
+    kappa = 0.7
     alpha = 0.001
     eta = 0.001
     threshold = 0.00000001
-    num_threads = 4
-    ntopic = 10
+    num_threads = 1
+    ntopic = 40
     ndoc, nvoc = dtm.shape
 
     # ### Opt
     np.random.seed(0)
     # Initialization
-    lambda_opt = np.random.gamma(100., 1./100., (ntopic, nvoc))
-    gamma_opt = np.ones((ndoc, ntopic))
-    lambda_int = np.zeros((ntopic, nvoc))
-    phi = np.zeros((ntopic, nvoc))
-    ExpLogTethad = np.zeros(ntopic)
-    ExpELogBeta = np.zeros((ntopic, nvoc))
+    model = LDA_vi(ntopic, num_threads)
     time1 = time.time()
     # lda_batch makes in place operations
-    lda_vi_cython.lda_batch(dtm, ntopic, S, num_threads, 512, 0.7, lambda_opt, gamma_opt, lambda_int, phi, ExpLogTethad, ExpELogBeta)
+    model.fit_s(dtm, S, tau=512, kappa=0.7)
 
     time1_stop = time.time() - time1
     print 'Opt Time is', time1_stop, ' s'
+
+    # ### Batch
+    # Initialization
+    model_batch = LDA_vi(ntopic, num_threads)
+    time1 = time.time()
+    # lda_batch makes in place operations
+    model_batch.fit_batch(dtm, ndoc)
+
+    time1_stop = time.time() - time1
+    print 'Batch Time is', time1_stop, ' s'
 
     # ### Serial
 
@@ -122,17 +130,24 @@ if __name__ == '__main__':
     if corpus_ap:
         # dtm AP: printing the result
         print 'Cython topics'
-        topic_word = lambda_opt  # model.components_ also works
+        topic_word = model.topics  # model.components_ also works
         n_top_words = 10
         for i, topic_dist in enumerate(topic_word):
-            topic_words = np.array(vocabulary)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
+            topic_words = np.array(vocablv)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
+            print(u'Topic {}: {}'.format(i, ' '.join(topic_words)))
+
+        print 'Batch topics'
+        topic_word = model_batch.topics  # model.components_ also works
+        n_top_words = 10
+        for i, topic_dist in enumerate(topic_word):
+            topic_words = np.array(vocablv)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
             print(u'Topic {}: {}'.format(i, ' '.join(topic_words)))
 
         print 'Serial topics'
         topic_word = lambda_serial  # model.components_ also works
         n_top_words = 10
         for i, topic_dist in enumerate(topic_word):
-            topic_words = np.array(vocabulary)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
+            topic_words = np.array(vocablv)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
             print(u'Topic {}: {}'.format(i, ' '.join(topic_words)))
 
     else:
@@ -142,7 +157,7 @@ if __name__ == '__main__':
         # Cython
         plt.subplot(211)
         for i in xrange(num_topics):
-            plt.plot(np.arange(N_words), lambda_opt[i, :])
+            plt.plot(np.arange(N_words), model.topics[i, :])
         plt.title('Opt')
         # Serial
         plt.subplot(212)
