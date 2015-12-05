@@ -105,10 +105,10 @@ class LDA:
         cyplda.init_topics(documents, t_K_V, D_K, t_sum_K, curr_K, d_start, d_end)
                 
         #have sum_K and K_V be the sum of all thread-specific t_sum_K's/t_K_V's
-        #with copyCondition:
-        cyplda.add1d(sum_K, t_sum_K)
-        cyplda.add2d(K_V, t_K_V)
-            #self.copyConditionCheck(copyCount, num_threads, copyCondition) 
+        with copyCondition:
+            cyplda.add1d(sum_K, t_sum_K)
+            cyplda.add2d(K_V, t_K_V)
+            self.copyConditionCheck(copyCount, num_threads, copyCondition) 
         
         #have t_sum_K/t_K_V be a copy of the summed sum_K/K_V
         cyplda.copy1d(sum_K, t_sum_K)
