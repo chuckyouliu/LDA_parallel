@@ -1,4 +1,5 @@
 import cyplda
+import matutil as mat
 import numpy as np
 import threading
 
@@ -80,8 +81,8 @@ class LDA:
             
         assert np.sum(sum_K) == np.sum(documents), "Sum_K not synced: {}, {}".format(np.sum(sum_K), np.sum(documents))
         assert np.sum(K_V) == np.sum(documents), "K_V not synced: {}, {}".format(np.sum(K_V), np.sum(documents))
-        cyplda.normalize(K_V, beta)
-        cyplda.normalize(D_K, alpha)           
+        mat.normalize(K_V, beta)
+        mat.normalize(D_K, alpha)           
         
         self.K_V = K_V
         self.D_K = D_K
@@ -106,35 +107,35 @@ class LDA:
                 
         #have sum_K and K_V be the sum of all thread-specific t_sum_K's/t_K_V's
         with copyCondition:
-            cyplda.add1d(sum_K, t_sum_K)
-            cyplda.add2d(K_V, t_K_V)
+            mat.add1d(sum_K, t_sum_K)
+            mat.add2d(K_V, t_K_V)
             self.copyConditionCheck(copyCount, num_threads, copyCondition) 
         
         #have t_sum_K/t_K_V be a copy of the summed sum_K/K_V
-        cyplda.copy1d(sum_K, t_sum_K)
-        cyplda.copy2d(K_V, t_K_V)
+        mat.copy1d(sum_K, t_sum_K)
+        mat.copy2d(K_V, t_K_V)
         #start the gibb sampling iterations
         for i in xrange(self.iterations/self.sync_interval):
             cyplda.CGS_iter(documents, t_K_V, D_K, t_sum_K, curr_K, alpha, beta, sampling, p_K, uniq_K, d_start, d_end, self.sync_interval)
             #must synchronize sum_K and K_V              
             #this subtraction can be done in parallel as originals unmodified and then wait for every thread to do that
             
-            cyplda.subtract1d(t_sum_K, sum_K)
-            cyplda.subtract2d(t_K_V, K_V)
+            mat.subtract1d(t_sum_K, sum_K)
+            mat.subtract2d(t_K_V, K_V)
           
             with copyCondition:
                 self.copyConditionCheck(copyCount, num_threads, copyCondition)
                 
             #one at a time update sum_K
             with copyCondition:
-                cyplda.add1d(sum_K, t_sum_K)
-                cyplda.add2d(K_V, t_K_V)
+                mat.add1d(sum_K, t_sum_K)
+                mat.add2d(K_V, t_K_V)
                 self.copyConditionCheck(copyCount, num_threads, copyCondition)
                 
             #at this point need to wait for all threads to update sum_K with their changes
             #once all threads reach this point it's safe to copy sum_K to t_sum_K
-            cyplda.copy1d(sum_K, t_sum_K)
-            cyplda.copy2d(K_V, t_K_V)
+            mat.copy1d(sum_K, t_sum_K)
+            mat.copy2d(K_V, t_K_V)
          
     def copyConditionCheck(self, copyCount, num_threads, copyCondition):
         copyCount[0] +=1
