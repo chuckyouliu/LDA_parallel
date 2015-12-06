@@ -202,22 +202,22 @@ cpdef void m_step(double[:, ::1] topics, double[:, ::1] topics_int,
 def e_step(int[:] docs, long[:, ::1] dtm, double[:, ::1] gamma,
                   double[:, ::1] ExpELogBeta, double[::1] ExpLogTethad,
                   double[:, ::1] topics_int, double[:, ::1] phi,
-                  int[:] indices, int num_topics):
+                  int[:] indices, int num_topics, int w_start, int w_end, int w_interval):
     with nogil:
         _e_step(docs, dtm, gamma, ExpELogBeta, ExpLogTethad, topics_int,
-                phi, indices, num_topics)
+                phi, indices, num_topics, w_start, w_end, w_interval)
 
 cdef void _e_step(int[:] docs, long[:, ::1] dtm, double[:, ::1] gamma,
                   double[:, ::1] ExpELogBeta, double[::1] ExpLogTethad,
                   double[:, ::1] topics_int, double[:, ::1] phi,
-                  int[:] indices, int num_topics) nogil:
+                  int[:] indices, int num_topics, int w_start, int w_end, int w_interval) nogil:
     cdef:
         int num_words_loc, j_v, j_t, j_v_r, d, inner_it, i
         double el1, el2, s, err, a_dot, diff
         int num_words = dtm.shape[1]
         # counts and ids for the current document
-        int* counts = <int*> malloc(num_words*sizeof(int))
-        int* ids = <int*> malloc(num_words*sizeof(int))
+        int* counts = <int*> malloc(w_interval*sizeof(int))
+        int* ids = <int*> malloc(w_interval*sizeof(int))
         double alpha = 1./float(num_topics)
 
     for i in range(docs.shape[0]):
@@ -227,7 +227,7 @@ cdef void _e_step(int[:] docs, long[:, ::1] dtm, double[:, ::1] gamma,
 
         # ids : index of the words in the current doc
         # counts : counts of the words
-        for j_v in range(num_words):
+        for j_v in range(w_start,w_end):
             # word j_v in document
             if dtm[d, j_v] > 0:
                 ids[num_words_loc] = j_v
