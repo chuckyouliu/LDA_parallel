@@ -134,7 +134,7 @@ class LDA_vi:
             w_interval = (num_words - (num_words%self.num_threads))/self.num_threads + 1 if num_words%self.num_threads != 0 else num_words/self.num_threads
             for i in xrange(self.num_threads):
                 word_group = (i+tid)%self.num_threads
-                with wLocks[word_group]:
+                with wlocks[word_group]:
                     w_start = (word_group)*w_interval
                     w_end = min(num_words, w_start + w_interval)
                     lda_vi_cython.e_step(docs, dtm, gamma, ExpELogBeta, ExpLogTethad, topics_int_t, phi,
