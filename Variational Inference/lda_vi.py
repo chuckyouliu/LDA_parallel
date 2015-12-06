@@ -59,7 +59,7 @@ class LDA_vi:
             self.topics = self.topics
             self.gamma = self.gamma
 
-    def fit_p(self, dtm, batch_size, tau=512, kappa=0.7):
+    def fit_p(self, dtm, batch_size, tau=512, kappa=0.7, locks=False):
         '''
         Parallel version of the lda: the temporary topics are computed in
         parallel for each document inside a mini-batch
@@ -90,11 +90,18 @@ class LDA_vi:
             #vector of threads
             threads = [None]*self.num_threads
 
+            wlocks = None
+
+            if locks:
+                wlocks = [None]*self.num_threads
+                for i in range(self.num_threads):
+                    wlocks[i] = threading.Lock()
+
             for tid in range(self.num_threads):
                 threads[tid] = threading.Thread(target=self.worker_estep,
-                                                args=(docs_thread[tid], dtm,
+                                                args=(tid,docs_thread[tid], dtm,
                                                       topics_int[tid, :, :],
-                                                      gamma, ExpELogBeta, indices))
+                                                      gamma, ExpELogBeta, indices, wlocks))
                 threads[tid].start()
 
             for thread in threads:
@@ -112,16 +119,26 @@ class LDA_vi:
         self.topics = topics
         self.gamma = gamma
 
-    def worker_estep(self, docs, dtm, topics_int_t, gamma, ExpELogBeta, indices):
+    def worker_estep(self, tid, docs, dtm, topics_int_t, gamma, ExpELogBeta, indices, wlocks):
         # Local initialization
         num_words = dtm.shape[1]
+
         ExpLogTethad = np.zeros(self.num_topics)
         phi = np.zeros((self.num_topics, num_words))
 
         # Lambda_int is shared among the threads
-        lda_vi_cython.e_step(docs, dtm, gamma, ExpELogBeta, ExpLogTethad, topics_int_t, phi,
-               indices, self.num_topics)
-
+        if wlocks is None:
+            lda_vi_cython.e_step(docs, dtm, gamma, ExpELogBeta, ExpLogTethad, topics_int_t, phi,
+               indices, self.num_topics, 0, num_words, num_words)
+        else:
+            w_interval = (num_words - (num_words%self.num_threads))/self.num_threads + 1 if num_words%self.num_threads != 0 else num_words/self.num_threads
+            for i in xrange(self.num_threads):
+                word_group = (i+tid)%self.num_threads
+                with wLocks[word_group]:
+                    w_start = (word_group)*w_interval
+                    w_end = min(num_words, w_start + w_interval)
+                    lda_vi_cython.e_step(docs, dtm, gamma, ExpELogBeta, ExpLogTethad, topics_int_t, phi,
+                        indices, self.num_topics, w_start, w_end, w_interval)
          
 
 
