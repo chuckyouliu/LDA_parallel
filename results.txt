@@ -54,8 +54,9 @@ On larger Yelp data set:
 The Lock (True/False) indicates whether or not the 2nd locking approach over the words was used.
 As you can see as the threads increase this becomes more beneficial on a large data set where
 the synchronization as well as memory cost are higher
+
 Serial: 959.209805965
-Parallel
+Parallel: sync_step set to 100
 Threads-4-Lock-True:400.87330699
 Threads-4-Lock-False:371.171579123
 Threads-8-Lock-True:275.217550993
