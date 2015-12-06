@@ -25,8 +25,8 @@ test = plda.LDA(20, iterations)
 n_top_words = 8
 
 print str(iterations) + " Iterations"
-for num_threads in [8]:
-    for sync in [50]:
+for num_threads in [4,8,16]:
+    for sync in [1]:
         test.set_sync_interval(sync)
         #run training data on two methods of parallel fit
         with Timer() as t:
