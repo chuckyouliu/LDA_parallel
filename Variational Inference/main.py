@@ -101,7 +101,7 @@ if __name__ == '__main__':
     model_parallel1 = LDA_vi(num_topics, num_threads)
     time1 = time.time()
     # lda_batch makes in place operations
-    model_parallel1.fit_p(dtm, S, locks=True)
+    model_parallel1.fit_p(dtm, S)
     time1_stop = time.time() - time1
     print 'Parallel Time with {} threads is '.format(num_threads), time1_stop, ' s'
 
@@ -119,7 +119,7 @@ if __name__ == '__main__':
     model_parallel3 = LDA_vi(num_topics, num_threads)
     time1 = time.time()
     # lda_batch makes in place operations
-    model_parallel3.fit_p(dtm, S, locks=True)
+    model_parallel3.fit_p(dtm, S)
     time1_stop = time.time() - time1
     print 'Parallel Time with {} threads is '.format(num_threads), time1_stop, ' s'
 
