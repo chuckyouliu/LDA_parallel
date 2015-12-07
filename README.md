@@ -1,4 +1,4 @@
-# LDA_parallel
+# plda
 Parallelized Python/Cython implementation of Latent Dirichlet allocation
 
 Final project for CS205 at Harvard University
