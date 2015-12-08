@@ -48,3 +48,61 @@ partition of V attaining the associated lock. The same times below:
 Locking over V showed a signification slowdown, outweighing the benefit of synchronizing K_V.
 However, we did remove the need for storing a local copy of K_V, so if memory is a concern this
 would be a potential approach.
+
+On larger Yelp data set:
+
+The Lock (True/False) indicates whether or not the 2nd locking approach over the words was used.
+As you can see as the threads increase this becomes more beneficial on a large data set where
+the synchronization as well as memory cost are higher
+
+Serial: 935.484735012
+Parallel with sync_iteration = 1
+Threads-4-Lock-True:292.288184881
+Threads-4-Lock-False:313.088265896
+Threads-8-Lock-True:202.21343708
+Threads-8-Lock-False:255.573951006
+Threads-16-Lock-True:172.740152836
+Threads-16-Lock-False:271.601490974
+
+Example output:
+Topic 0: dog fry chili cheese bun beef onion flavor sauce drink
+Topic 1: burger fry cheese onion bacon bun truck patty cheeseburger meal
+Topic 2: rice soup chicken beef noodle lunch sauce shrimp egg flavor
+Topic 3: waitress kid meal music drink year chicken night ticket friend
+Topic 4: location line window minute lady chicken drive lunch cashier restroom
+Topic 5: wing chicken tot location night sauce cheese day drink flavor
+Topic 6: rib sauce potato pork chicken cheese brisket meat bean salad
+Topic 7: chicken rice salad bowl sauce location teriyaki lunch meal meat
+Topic 8: water cream gelato store door day owner taste meal ice
+Topic 9: sandwich lunch meat downtown deli bread cheese salad selection pastrami
+Topic 10: flavor sauce taste drink owner item chicken boba meat lunch
+Topic 11: pho broth roll bowl soup meat beef pork sauce spring
+Topic 12: pot flavor sauce dinner chicken meat style meal night item
+Topic 13: chicken meal sauce beef potato meat salad flavor home location
+Topic 14: salad gyro bread meat chicken hummus sauce lamb owner beef
+Topic 15: meat pork beef soup rice flavor sauce bbq chicken item
+Topic 16: chicken location fry employee meal home bell building cheese bite
+Topic 17: music night atmosphere room friend drink fun decor lounge party
+Topic 18: coffee cream ice pastry drink chocolate cheese tea day cup
+Topic 19: sushi roll fish chef tuna rice quality sauce salmon tempura
+Topic 20: pizza cheese crust slice delivery sauce wing garlic topping pepperoni
+Topic 21: tea minute lunch chicken meal location manager salad day sauce
+Topic 22: bar drink beer bartender night game waitress friend area pool
+Topic 23: day night location line home floor employee taste lady area
+Topic 24: sandwich location employee drive sub store subway bread window guy
+Topic 25: buffet chicken lunch selection rice dinner meal spice item day
+Topic 26: chocolate dessert cake flavor meal view salad cheese patio brunch
+Topic 27: location manager chicken minute meal coupon problem chain kid night
+Topic 28: sum casino night strip chicken spot kind lunch money cart
+Topic 29: shrimp seafood fish crab oyster sauce clam taste flavor meal
+Topic 30: breakfast egg pancake toast waitress coffee bacon potato hash morning
+Topic 31: taco burrito meat bean tortilla salsa cheese location sauce burritos
+Topic 32: steak rib potato dinner salad buffet meal medium casino night
+Topic 33: wine dinner waiter meal appetizer lobster dessert bread sauce entree
+Topic 34: sandwich airport salad bite turkey cheese flight day location chicken
+Topic 35: chicken day location salad lunch meal drink friend kind minute
+Topic 36: pasta sauce salad bread meatball meal dinner spaghettus garlic family
+Topic 37: smoothie juice smoothy wrap salad location day meal protein drink
+Topic 38: salsa chip bean taco margarita tortilla rice enchilada sauce cheese
+Topic 39: court chicken mall snack meal pupusa cheese drink sauce location
+

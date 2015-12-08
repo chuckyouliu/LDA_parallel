@@ -24,7 +24,7 @@ n_top_words = 10
 times = {}
 print str(iterations) + " Iterations"
 for num_threads in [4, 8, 16]:
-    for sync in [100]:
+    for sync in [1]:
         test.set_sync_interval(sync)
         with Timer() as t:
             test.fit(X, num_threads, 0.1, 0.01)

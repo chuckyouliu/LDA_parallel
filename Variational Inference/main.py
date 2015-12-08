@@ -60,15 +60,15 @@ if __name__ == '__main__':
         # 100 docs
         # 450 words
         # 9 artificial topics (for each bag of 5 words)
-        N_docs = 100
-        N_words = 450
-        num_topics = 9
-        dtm = np.zeros((N_docs, N_words), dtype=int)  # shape (docs, words)
-        vocabulary = np.arange(N_words)
+        # N_docs = 100
+        # N_words = 450
+        # num_topics = 9
+        # dtm = np.zeros((N_docs, N_words), dtype=int)  # shape (docs, words)
+        # vocabulary = np.arange(N_words)
 
-        block = 10 * np.ones((20, 50), dtype=int)
-        for i in range(num_topics):
-            dtm[10*i:10*(i+2), 50*i:50*(i+1)] = block
+        # block = 10 * np.ones((20, 50), dtype=int)
+        # for i in range(num_topics):
+        #     dtm[10*i:10*(i+2), 50*i:50*(i+1)] = block
 
     # #### Parameters
     #dtm = np.load('../../lv_dtm.npy').astype(int)
@@ -77,11 +77,11 @@ if __name__ == '__main__':
     max_iter = 100
     tau = 512
     kappa = 0.7
-    alpha = 0.001
-    eta = 0.001
+    alpha = 1/40
+    eta = 1/40
     threshold = 0.00000001
     num_threads = 1
-    num_topics = 9
+    num_topics = 40
     ndoc, nvoc = dtm.shape
 
     # ### Opt
@@ -101,12 +101,12 @@ if __name__ == '__main__':
     model_parallel1 = LDA_vi(num_topics, num_threads)
     time1 = time.time()
     # lda_batch makes in place operations
-    model_parallel1.fit_p(dtm, S, locks=True)
+    model_parallel1.fit_p(dtm, S)
     time1_stop = time.time() - time1
     print 'Parallel Time with {} threads is '.format(num_threads), time1_stop, ' s'
 
     # Initialization
-    num_threads = 1
+    num_threads = 4
     model_parallel2 = LDA_vi(num_topics, num_threads)
     time1 = time.time()
     # lda_batch makes in place operations
@@ -115,15 +115,15 @@ if __name__ == '__main__':
     print 'Parallel Time with {} threads is '.format(num_threads), time1_stop, ' s'
 
     # Initialization
-    num_threads = 4
+    num_threads = 8
     model_parallel3 = LDA_vi(num_topics, num_threads)
     time1 = time.time()
     # lda_batch makes in place operations
-    model_parallel3.fit_p(dtm, S, locks=True)
+    model_parallel3.fit_p(dtm, S)
     time1_stop = time.time() - time1
     print 'Parallel Time with {} threads is '.format(num_threads), time1_stop, ' s'
 
-    num_threads = 4
+    num_threads = 16
     model_parallel4 = LDA_vi(num_topics, num_threads)
     time1 = time.time()
     # lda_batch makes in place operations
@@ -133,12 +133,12 @@ if __name__ == '__main__':
 
     # ### Serial
 
-    np.random.seed(0)
-    lambda_ = np.random.gamma(100., 1./100., (num_topics, nvoc))
-    time2 = time.time()
-    lambda_serial, gamma_serial = lda_vi_serial.lda_batch(lambda_, dtm, num_topics, S, 512, 0.7)
-    time2_stop = time.time() - time2
-    print 'Serial Time is', time2_stop, ' s'
+    # np.random.seed(0)
+    # lambda_ = np.random.gamma(100., 1./100., (num_topics, nvoc))
+    # time2 = time.time()
+    # lambda_serial, gamma_serial = lda_vi_serial.lda_batch(lambda_, dtm, num_topics, S, 512, 0.7)
+    # time2_stop = time.time() - time2
+    # print 'Serial Time is', time2_stop, ' s'
 
     if corpus_ap:
         # dtm AP: printing the result
@@ -177,29 +177,29 @@ if __name__ == '__main__':
             topic_words = np.array(vocablv)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
             print(u'Topic {}: {}'.format(i, ' '.join(topic_words)))
 
-    else:
-        # Checking result
+    # else:
+    #     # Checking result
 
-        plt.figure(1)
-        # Cython
-        plt.subplot(411)
-        for i in xrange(num_topics):
-            plt.plot(np.arange(N_words), model_parallel1.topics[i, :])
-        plt.title('Opt')
-        # Serial
-        plt.subplot(412)
-        for i in xrange(num_topics):
-            plt.plot(np.arange(N_words), model_parallel2.topics[i, :])
-        plt.title('Serial')
-        plt.subplot(413)
-        for i in xrange(num_topics):
-            plt.plot(np.arange(N_words), model_parallel3.topics[i, :])
-        plt.title('Parallel')
-        plt.subplot(414)
-        for i in xrange(num_topics):
-            plt.plot(np.arange(N_words), model_parallel4.topics[i, :])
-        plt.title('Parallel')
-        plt.show()
+    #     plt.figure(1)
+    #     # Cython
+    #     plt.subplot(411)
+    #     for i in xrange(num_topics):
+    #         plt.plot(np.arange(N_words), model_parallel1.topics[i, :])
+    #     plt.title('Opt')
+    #     # Serial
+    #     plt.subplot(412)
+    #     for i in xrange(num_topics):
+    #         plt.plot(np.arange(N_words), model_parallel2.topics[i, :])
+    #     plt.title('Serial')
+    #     plt.subplot(413)
+    #     for i in xrange(num_topics):
+    #         plt.plot(np.arange(N_words), model_parallel3.topics[i, :])
+    #     plt.title('Parallel')
+    #     plt.subplot(414)
+    #     for i in xrange(num_topics):
+    #         plt.plot(np.arange(N_words), model_parallel4.topics[i, :])
+    #     plt.title('Parallel')
+    #     plt.show()
 
     # raw_input()
     # for i in xrange(num_topics):
