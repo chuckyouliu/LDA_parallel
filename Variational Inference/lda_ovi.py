@@ -10,6 +10,7 @@ class LDA:
         self.num_threads = num_threads
         self.topics = None
         self.gamma = None
+        self.perplexity_train = None
 
     def set_topics(self, n):
         self.num_topics = n
@@ -63,6 +64,9 @@ class LDA:
             lda_vi_cython.m_step(topics, topics_int_tot, indices, num_docs,
                                  batch_size, tau, kappa, it_batch)
 
+        # Compute the perplexity of the trained model on the train data
+        self.perplexity_train = self._log_likelihood(topics, gamma, dtm)
+
         self.topics = topics
         self.gamma = gamma
 
@@ -110,13 +114,19 @@ class LDA:
         topic distribution already learned by the model
         '''
         gamma = self.transform(dtm_test, tau, kappa)
+        return self._log_likelihood(topics, gamma, dtm_test)
+
+    def _log_likelihood(topics, gamma, dtm):
+        '''
+        Compute the log-likelihood given the two distributions gamma and topics.
+        '''
         # Normalizing the topics and gamma
-        topics = self.topics/self.topics.sum(axis=0)
+        topics = topics/topics.sum(axis=1)[:, np.newaxis]
         gamma = gamma/gamma.sum(axis=1)[:, np.newaxis]
 
         if len(gamma.shape) == 1:
-            doc_idx = np.nonzero(dtm_test)[0]
-            doc_cts = dtm_test[doc_idx]
+            doc_idx = np.nonzero(dtm)[0]
+            doc_cts = dtm[doc_idx]
             return np.sum(np.log(np.dot(gamma[i, :],
                           topics[:, doc_idx]))*doc_cts)
         else:
@@ -124,12 +134,12 @@ class LDA:
             num = 0
             denom = 0
             for i in range(gamma.shape[0]):
-                doc_idx = np.nonzero(dtm_test[i, :])[0]
-                doc_cts = dtm_test[i, doc_idx]
+                doc_idx = np.nonzero(dtm[i, :])[0]
+                doc_cts = dtm[i, doc_idx]
                 num += np.sum(np.log(np.dot(gamma[i, :],
                               topics[:, doc_idx]))*doc_cts)
                 denom += np.sum(doc_cts)
-            return num/denom
+        return num/denom
 
     def print_topic(self, vocabulary, num_top_words=10):
         if self.topics is None:
