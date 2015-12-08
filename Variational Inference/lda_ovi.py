@@ -26,7 +26,6 @@ class LDA:
         '''
         # Initialisation
         num_docs, num_words = dtm.shape
-        np.random.seed(0)
         topics = np.random.gamma(100., 1./100., (self.num_topics, num_words))
         gamma = np.ones((num_docs, self.num_topics))
         ExpELogBeta = np.zeros((self.num_topics, num_words))
@@ -37,7 +36,7 @@ class LDA:
             np.arange(num_docs, dtype=np.int32), num_batch)
 
         for it_batch in range(num_batch):
-            lda_vi_cython.exp_digamma_arr(topics, ExpELogBeta)
+            lda_vi_cython.exp_digamma2d(topics, ExpELogBeta)
 
             docs_thread = np.array_split(batches[it_batch], self.num_threads)
 
@@ -89,7 +88,7 @@ class LDA:
             np.arange(num_docs, dtype=np.int32), num_batch)
 
         for it_batch in range(num_batch):
-            lda_vi_cython.exp_digamma_arr(self.topics, ExpELogBeta)
+            lda_vi_cython.exp_digamma2d(self.topics, ExpELogBeta)
 
             docs_thread = np.array_split(batches[it_batch], self.num_threads)
 
@@ -116,7 +115,7 @@ class LDA:
         gamma = self.transform(dtm_test, tau, kappa)
         return self._log_likelihood(topics, gamma, dtm_test)
 
-    def _log_likelihood(topics, gamma, dtm):
+    def _log_likelihood(self, topics, gamma, dtm):
         '''
         Compute the log-likelihood given the two distributions gamma and topics.
         '''

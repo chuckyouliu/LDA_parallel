@@ -34,7 +34,7 @@ cdef double dot(double[:, ::1] v1, int* v2, unsigned int N, unsigned int j) nogi
     return result
 
 
-cdef void exp_digamma_vec(double[:, ::1] data, double[::1] dig, unsigned int d) nogil:
+cdef void exp_digamma1d(double[:, ::1] data, double[::1] dig, unsigned int d) nogil:
     cdef:
         unsigned int i
         unsigned int N = data.shape[1]
@@ -52,7 +52,7 @@ cdef void exp_digamma_vec(double[:, ::1] data, double[::1] dig, unsigned int d) 
         dig[i] = exp(dig[i] - s)
 
 
-cpdef void exp_digamma_arr(double[:, ::1] data, double[:, ::1] dig_arr) nogil:
+cpdef void exp_digamma2d(double[:, ::1] data, double[:, ::1] dig_arr) nogil:
     cdef:
         unsigned int i, j
         unsigned int N = data.shape[0]
@@ -130,7 +130,7 @@ cdef void _e_step(int[:] docs, long[:, ::1] dtm, double[:, ::1] gamma,
 
         for inner_it in range(1000):
 
-            exp_digamma_vec(gamma, ExpLogTethad, d)
+            exp_digamma1d(gamma, ExpLogTethad, d)
 
             # Computing phi
             for j_v in range(num_words_loc):
