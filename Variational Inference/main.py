@@ -73,7 +73,7 @@ if __name__ == '__main__':
     # #### Parameters
     #dtm = np.load('../../lv_dtm.npy').astype(int)
     #vocablv = np.load('../Lasvegas/lv_vocab10.npy')
-    S = 50
+    S = 10
     max_iter = 100
     tau = 512
     kappa = 0.7
